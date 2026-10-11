@@ -1,42 +1,61 @@
-# sv
+# Чистый взгляд / vision-app
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Личный дневник показателей зрения: защищённые аккаунты, графики и история, CSV-экспорт, учебные тесты с серверной проверкой и таймер перерывов. Svelte 5, SvelteKit 2, Node 22, SQLite.
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
+## Локальный запуск
 
 ```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.15.1 create --template minimal --types ts --add prettier eslint vitest="usages:unit" playwright sveltekit-adapter="adapter:auto" --install npm vision-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+npm ci
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+База создаётся в `data/vision.db`. `DATABASE_PATH` задаёт другой путь. В репозиторий и образ база не входит. Старый `vision.db` из истории Git — публичный демонстрационный файл, не используйте его для production.
 
-To create a production version of your app:
+```sh
+npm run check
+npm run test:unit -- --run
+npm run build:node
+npx playwright install chromium
+npm run test:e2e
+ORIGIN=http://localhost:3000 npm start
+```
+
+E2E создаёт отдельную базу с уникальным именем в `data/`.
+
+## Публичный сайт и облачная сборка
+
+https://vision-pudgekaramelkin.elven-sole-4534.chatgpt.site
+
+Основное размещение — Sites, Cloudflare Worker + постоянная D1. `npm run build` собирает Worker в `dist/server/index.js` и статические файлы в `dist/client`. `.openai/hosting.json` хранит ID сайта и привязку DB. Схема — `db/schema.ts`, миграции — `drizzle/`; генерация: `npm run db:generate`. Публикация через Sites применяет миграции и сохраняет версию. Изменения в GitHub сами по себе не публикуют Sites: нужна новая сборка и публикация версии.
+
+Локальная проверка облачного варианта:
 
 ```sh
 npm run build
+npx wrangler d1 migrations apply DB --local --persist-to .wrangler/e2e
+TEST_SITES=1 npm run test:e2e
 ```
 
-You can preview the production build with `npm run preview`.
+Тестовые D1 и production D1 — разные базы. Начальное учебное содержимое добавляется один раз атомарно, схема создаётся только миграциями.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+Альтернативный Node-вариант сохранён: `npm run build:node`, затем `npm start`, постоянный диск и `DATABASE_PATH`. Dockerfile собирает этот вариант. Railway необязателен; для текущего сайта он не используется.
+
+Пользователь регистрируется самостоятельно. Дефолтного администратора и пароля нет. В Node-варианте назначение роли из консоли сервиса:
+
+```sh
+node scripts/promote-admin.mjs <зарегистрированный-логин>
+```
+
+В D1 роль назначается владельцем через защищённый доступ к базе, после регистрации нужного пользователя; публичного назначения администратора нет.
+
+Сессии случайные, в базе хранится SHA-256 токена, срок — 7 дней. Выход отзывает сессию, смена пароля отзывает все сессии. Админские запросы защищены серверной проверкой. За доверенным proxy используйте правильный `ORIGIN`; cookies для HTTPS имеют Secure. Ограничение входа/регистрации: 15 попыток с одного адреса за 15 минут. Если все запросы видны как один proxy, настройте доверенный адресный заголовок и глубину proxy по документации адаптера после проверки Railway; не доверяйте произвольному X-Forwarded-For.
+
+## Данные, резервирование и откат
+
+```sh
+node scripts/backup.mjs /path/outside-volume/vision-backup.db
+```
+
+Команда использует SQLite backup API для согласованной копии WAL-базы. Для Node настройте регулярное копирование вне диска сервиса. Для D1 используйте инструменты резервирования хостинга. Перед миграцией существующей установки сделайте backup; явно перенесите проверенную базу и укажите её путь. При обновлении схемы добавляются только новые таблицы. Не возвращайтесь к старому коду с cookie-ID и общедоступным паролем admin. Текущую опубликованную базу в Git следует считать раскрытой; реальные данные из неё нельзя считать приватными.
+
+Учебные тесты не являются медицинской диагностикой. Приложение не измеряет остроту зрения и не выдаёт лечебных рекомендаций.

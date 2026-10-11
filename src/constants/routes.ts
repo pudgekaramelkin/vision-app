@@ -17,6 +17,7 @@ const PAGES = {
   "/blog/[id]": (id: (string), params?: {  }) => {
     return `/blog/${id}`
   },
+  "/break": `/break`,
   "/dashboard": `/dashboard`,
   "/settings": `/settings`,
   "/test": `/test`,
@@ -29,7 +30,9 @@ const PAGES = {
  * SERVERS
  */
 const SERVERS = {
-  "POST /logout": `/logout`
+  "POST /logout": `/logout`,
+  "GET /dashboard/export": `/dashboard/export`,
+  "GET /health": `/health`
 }
 
 /**
@@ -169,8 +172,8 @@ export function route<T extends keyof AllTypes>(key: T, ...params: any[]): strin
 * ```
 */
 export type KIT_ROUTES = {
-  PAGES: { '/': never, '/admin': never, '/login': never, '/register': never, '/blog': never, '/blog/[id]': 'id', '/dashboard': never, '/settings': never, '/test': never, '/test/[id]': 'id' }
-  SERVERS: { 'POST /logout': never }
+  PAGES: { '/': never, '/admin': never, '/login': never, '/register': never, '/blog': never, '/blog/[id]': 'id', '/break': never, '/dashboard': never, '/settings': never, '/test': never, '/test/[id]': 'id' }
+  SERVERS: { 'POST /logout': never, 'GET /dashboard/export': never, 'GET /health': never }
   ACTIONS: { 'add_post /admin': never, 'edit_post /admin': never, 'delete_post /admin': never, 'add_test /admin': never, 'delete_test /admin': never, 'add_question /admin': never, 'edit_question /admin': never, 'delete_question /admin': never, 'default /login': never, 'default /register': never, 'add_log /dashboard': never, 'delete_log /dashboard': never, 'edit_log /dashboard': never, 'delete_test /dashboard': never, 'change_password /settings': never, 'delete_account /settings': never, 'save /test/[id]': 'id' }
   LINKS: Record<string, never>
   Params: { 'id': never }

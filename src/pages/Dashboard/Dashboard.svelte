@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { enhance } from '$app/forms';
 	import { Line } from 'svelte-chartjs';
 	import {
@@ -62,7 +63,26 @@
 	});
 </script>
 
-<h1>Личный кабинет</h1>
+<div class="page-heading">
+	<div>
+		<p class="eyebrow">Ваше зрение в деталях</p>
+		<h1>Мой дневник</h1>
+		<p>Показатели, заметки и история — в одном месте.</p>
+	</div>
+	<a href="/dashboard/export" class="outline" role="button" download>↓ Экспорт CSV</a>
+</div>
+{#if page.form?.error}<p class="notice" role="alert">{page.form.error}</p>{/if}
+<div class="summary-grid">
+	<article><small>Записей в дневнике</small><strong>{visionLogs.length}</strong></article>
+	<article><small>Пройдено тестов</small><strong>{testResults.length}</strong></article>
+	<article>
+		<small>Последняя запись</small><strong
+			>{visionLogs.length
+				? new Date(visionLogs[visionLogs.length - 1].created_at).toLocaleDateString('ru-RU')
+				: 'Пока нет'}</strong
+		>
+	</article>
+</div>
 <nav style="margin-bottom: 20px;">
 	<ul>
 		<li>
@@ -83,7 +103,7 @@
 		<article>
 			<h3>Динамика диоптрий</h3>
 			{#if visionLogs.length > 0}
-				<div style="height: 250px;">
+				<div style="height: 250px; min-width: 0;">
 					<Line data={chartDataLogs} options={{ maintainAspectRatio: false }} />
 				</div>
 
@@ -106,13 +126,14 @@
 												method="POST"
 												action="?/edit_log"
 												use:enhance
-												onsubmit={() => (editLogId = null)}
 												style="margin: 0; display: flex; gap: 10px;"
 											>
 												<input type="hidden" name="id" value={log.id} />
 												<input
 													type="number"
 													step="0.25"
+													min="-40"
+													max="40"
 													name="left_eye"
 													value={log.left_eye}
 													required
@@ -121,12 +142,19 @@
 												<input
 													type="number"
 													step="0.25"
+													min="-40"
+													max="40"
 													name="right_eye"
 													value={log.right_eye}
 													required
 													style="width: 80px;"
 												/>
-												<input type="text" name="astigmatism" value={log.astigmatism} />
+												<input
+													type="text"
+													name="astigmatism"
+													maxlength="1000"
+													value={log.astigmatism}
+												/>
 												<button type="submit" style="width: auto; padding: 5px;">💾</button>
 												<button
 													type="button"
@@ -164,7 +192,10 @@
 						</tbody>
 					</table>
 				</div>
-			{:else}<p>Нет записей от врача.</p>{/if}
+			{:else}<p>
+					Здесь появится история ваших показателей. Добавьте первую запись из рецепта или заключения
+					врача.
+				</p>{/if}
 		</article>
 
 		<article>
@@ -175,6 +206,8 @@
 						>Левый глаз<input
 							type="number"
 							step="0.25"
+							min="-40"
+							max="40"
 							name="left_eye"
 							placeholder="-1.5"
 							required
@@ -184,6 +217,8 @@
 						>Правый глаз<input
 							type="number"
 							step="0.25"
+							min="-40"
+							max="40"
 							name="right_eye"
 							placeholder="-1.5"
 							required
@@ -194,6 +229,7 @@
 					>Астигматизм / Заметки<input
 						type="text"
 						name="astigmatism"
+						maxlength="1000"
 						placeholder="cyl -0.5 ax 180"
 					/></label
 				>

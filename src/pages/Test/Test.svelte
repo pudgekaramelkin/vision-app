@@ -1,60 +1,90 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import type { Question, Test } from '$types/test';
-
-	type Props = {
-		questions: Question[];
-		test?: Test;
-	};
-
-	let { questions, test }: Props = $props();
-
-	let score = $state<number>(0);
-	let current = $state<number>(0);
-	let finished = $state<boolean>(false);
-	let answer = $state<string>('');
-
-	function check(e: Event) {
-		e.preventDefault();
-		const pointPerQuestion = 100 / questions.length;
-		if (answer.trim() === questions[current].answer.trim()) score += pointPerQuestion;
-
-		answer = '';
-		if (current < questions.length - 1) current++;
-		else finished = true;
-	}
+	let { questions, test }: { questions: Omit<Question, 'answer'>[]; test?: Test } = $props();
+	let current = $state(0);
+	let answers = $state<Record<string, string>>({});
+	let sending = $state(false);
+	let message = $state('');
 </script>
 
-<article style="max-width: 600px; margin: 0 auto; text-align: center;">
-	<h2>{test?.title}</h2>
-
+<article class="test-card">
+	<p class="eyebrow">Небольшой шаг к осознанности</p>
+	<h1>{test?.title}</h1>
+	<p>{test?.description}</p>
+	<p class="notice">
+		Учебный тест не измеряет остроту зрения и не заменяет обследование у офтальмолога.
+	</p>
 	{#if questions.length === 0}
 		<p>В этом тесте пока нет вопросов.</p>
-		<a href="/test" role="button" class="secondary">Назад</a>
-	{:else if !finished}
-		<div style="min-height: 300px; margin-bottom: 20px;">
-			{#if questions[current].question_text}
-				<h3 style="margin-bottom: 15px;">{questions[current].question_text}</h3>
-			{/if}
-			{#if questions[current].image_url}
-				<img
-					src={questions[current].image_url}
-					alt="test"
-					style="border-radius: 10px; max-width: 250px; margin: 0 auto 20px auto; display: block;"
-				/>
-			{/if}
-
-			<form onsubmit={check}>
-				<input type="text" bind:value={answer} placeholder="Ваш ответ" required />
-				<button type="submit">Ответить</button>
-			</form>
-		</div>
-		<small>Вопрос {current + 1} из {questions.length}</small>
+		<a href="/test">Вернуться к тестам</a>
 	{:else}
-		<h3>Тест завершен! Точность: {Math.round(score)}%</h3>
-		<form method="POST" action="?/save" use:enhance>
-			<input type="hidden" name="score" value={Math.round(score)} />
-			<button type="submit" class="contrast">Сохранить результат</button>
+		<progress value={current + 1} max={questions.length} aria-label="Прогресс теста"></progress>
+		<p>Вопрос {current + 1} из {questions.length}</p>
+		<form
+			method="POST"
+			action="?/save"
+			use:enhance={() => {
+				sending = true;
+				message = '';
+				return async ({ result, update }) => {
+					sending = false;
+					if (result.type === 'failure') message = 'Не удалось сохранить. Проверьте ответы.';
+					await update({ reset: false });
+				};
+			}}
+		>
+			{#each questions as question, index (question.id)}
+				<section hidden={current !== index}>
+					<h2>{question.question_text}</h2>
+					{#if question.image_url}<img
+							src={question.image_url}
+							alt="Иллюстрация к вопросу"
+							width="260"
+						/>{/if}
+					<label
+						>Ваш ответ<input
+							name="answer_{question.id}"
+							bind:value={answers[question.id]}
+							maxlength="200"
+							autocomplete="off"
+							required={current === index}
+						/></label
+					>
+				</section>
+			{/each}
+			{#if message}<p role="alert">{message}</p>{/if}
+			<div class="actions">
+				{#if current > 0}<button type="button" class="outline" onclick={() => current--}
+						>Назад</button
+					>{/if}
+				{#if current < questions.length - 1}<button
+						type="button"
+						disabled={!answers[questions[current].id]?.trim()}
+						onclick={() => current++}>Дальше →</button
+					>
+				{:else}<button
+						type="submit"
+						disabled={sending || questions.some((q) => !answers[q.id]?.trim())}
+						>{sending ? 'Сохраняем…' : 'Завершить и сохранить'}</button
+					>{/if}
+			</div>
 		</form>
 	{/if}
 </article>
+
+<style>
+	.test-card {
+		max-width: 760px;
+		margin: 24px auto;
+	}
+	.test-card img {
+		display: block;
+		margin: 24px auto;
+		max-width: 100%;
+	}
+	.actions {
+		display: flex;
+		gap: 12px;
+	}
+</style>

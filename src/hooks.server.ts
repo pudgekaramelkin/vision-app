@@ -1,12 +1,19 @@
-import db from '$server/db';
-import type { User } from '$types/user';
+import { error, type Handle } from '@sveltejs/kit';
+import { initializeDatabase } from '$db';
+import { getSession } from '$server/auth';
 
-export const handle = async ({ event, resolve }) => {
-	const userId = event.cookies.get('session');
-
-	if (userId) {
-		const user = db.prepare<unknown[], User>('SELECT id, role FROM users WHERE id = ?').get(userId);
-		if (user) event.locals.user = { id: user.id, role: user.role };
-	}
-	return resolve(event);
+export const handle: Handle = async ({ event, resolve }) => {
+	await initializeDatabase();
+	event.locals.user = await getSession(event.cookies.get('session'));
+	if (
+		(event.url.pathname === '/admin' || event.url.pathname.startsWith('/admin/')) &&
+		event.locals.user?.role !== 'admin'
+	)
+		error(403, 'Доступ только для администратора');
+	const response = await resolve(event);
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('X-Frame-Options', 'DENY');
+	if (event.locals.user) response.headers.set('Cache-Control', 'private, no-store');
+	return response;
 };

@@ -9,11 +9,17 @@
 	let { posts }: Props = $props();
 </script>
 
-<h1>Блог о здоровье глаз</h1>
+<p class="eyebrow">Библиотека</p>
+<h1>Статьи и заметки</h1>
+<p>Материалы для внимательного отношения к зрению.</p>
 
 {#each posts as post (post.id)}
 	<article>
 		<h2>{post.title}</h2>
 		<a href={route('/blog/[id]', post.id)} role="button" class="outline">Читать статью</a>
 	</article>
-{/each}
+{:else}<article>
+		<h2>Здесь скоро появятся статьи</h2>
+		<p>А пока можно вести дневник показателей или сделать короткий перерыв.</p>
+		<a href="/break">Открыть таймер перерывов →</a>
+	</article>{/each}
