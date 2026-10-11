@@ -49,7 +49,7 @@
 			</label>
 			<label>
 				Новый пароль
-				<input name="new_password" type="password" minlength="4" required />
+				<input name="new_password" type="password" minlength="10" required />
 			</label>
 			<button type="submit">Обновить пароль</button>
 		</form>

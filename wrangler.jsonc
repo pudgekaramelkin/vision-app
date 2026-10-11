@@ -1,0 +1,18 @@
+{
+	"name": "vision-app",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-05-15",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"directory": ".svelte-kit/cloudflare",
+		"binding": "ASSETS"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "vision-local",
+			"database_id": "00000000-0000-4000-8000-000000000000",
+			"migrations_dir": "drizzle"
+		}
+	]
+}

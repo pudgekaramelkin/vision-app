@@ -1,16 +1,7 @@
 import { redirect } from '@sveltejs/kit';
-
+import { revokeSession } from '$server/auth';
 export const POST = async ({ cookies, locals }) => {
-	// Явно указываем те же параметры (secure: false, sameSite: 'lax'), что и при создании
-	cookies.delete('session', {
-		path: '/',
-		secure: false,
-		sameSite: 'lax'
-	});
-
-	// Очищаем объект в памяти сервера
+	await revokeSession(cookies);
 	locals.user = undefined;
-
-	// Перекидываем на страницу входа
-	throw redirect(303, '/login');
+	redirect(303, '/login');
 };

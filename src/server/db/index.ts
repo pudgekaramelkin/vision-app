@@ -1,6 +1,13 @@
 import Database from 'better-sqlite3';
 
-const db = new Database('vision.db');
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+
+const databasePath = process.env.DATABASE_PATH || 'data/vision.db';
+mkdirSync(dirname(databasePath), { recursive: true });
+const db = new Database(databasePath);
+db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT DEFAULT 'user');
@@ -11,15 +18,11 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY AUTOINCREMENT, test_id INTEGER, question_text TEXT, image_url TEXT, answer TEXT);
 `);
 
-const adminExists = db.prepare("SELECT * FROM users WHERE username = 'admin'").get();
-if (!adminExists) {
-	import('bcryptjs').then((bcrypt) => {
-		const hash = bcrypt.hashSync('admin', 10);
-		db.prepare("INSERT INTO users (username, password, role) VALUES ('admin', ?, 'admin')").run(
-			hash
-		);
-	});
-}
+db.exec(`
+ CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
+ CREATE TABLE IF NOT EXISTS auth_attempts (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+`);
 
 const testCount = db.prepare('SELECT COUNT(*) as count FROM tests').get() as { count: number };
 if (testCount.count === 0) {
@@ -38,3 +41,5 @@ if (testCount.count === 0) {
 }
 
 export default db;
+
+export async function initializeDatabase() {}

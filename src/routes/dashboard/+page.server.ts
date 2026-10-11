@@ -1,20 +1,21 @@
-import { redirect } from '@sveltejs/kit';
-import db from '$server/db';
+import { parseVisionLog } from '$server/validation';
+import { redirect, fail } from '@sveltejs/kit';
+import db from '$db';
 import type { Test, TestResult } from '$types/test';
 import type { VisionLog } from '$types/vision';
 
 export const load = async ({ locals }) => {
 	if (!locals.user) throw redirect(302, '/login');
 
-	const tests = db.prepare<unknown[], Test>('SELECT * FROM tests').all();
+	const tests = await db.prepare<unknown[], Test>('SELECT * FROM tests').all();
 	// Добавили id в выборку, чтобы понимать, что удалять/редактировать
-	const testResults = db
+	const testResults = await db
 		.prepare<
 			unknown[],
 			TestResult
 		>('SELECT id, test_id, score, created_at FROM test_results WHERE user_id = ? ORDER BY created_at ASC')
 		.all(locals.user.id);
-	const visionLogs = db
+	const visionLogs = await db
 		.prepare<
 			unknown[],
 			VisionLog
@@ -26,40 +27,49 @@ export const load = async ({ locals }) => {
 
 export const actions = {
 	add_log: async ({ request, locals }) => {
-		if (!locals.user) throw redirect(302, '/login');
+		if (!locals.user) throw redirect(303, '/login');
 		const data = await request.formData();
-		db.prepare(
-			'INSERT INTO vision_logs (user_id, left_eye, right_eye, astigmatism) VALUES (?, ?, ?, ?)'
-		).run(locals.user.id, data.get('left_eye'), data.get('right_eye'), data.get('astigmatism'));
+		const log = parseVisionLog(data);
+		if (!log)
+			return fail(400, {
+				error: 'Укажите числовые значения от −40 до 40 и заметку до 1000 символов.'
+			});
+		await db
+			.prepare(
+				'INSERT INTO vision_logs (user_id, left_eye, right_eye, astigmatism) VALUES (?, ?, ?, ?)'
+			)
+			.run(locals.user.id, log.leftEye, log.rightEye, log.notes);
 		return { success: true };
 	},
 	delete_log: async ({ request, locals }) => {
+		if (!locals.user) throw redirect(303, '/login');
 		const data = await request.formData();
-		db.prepare('DELETE FROM vision_logs WHERE id = ? AND user_id = ?').run(
-			data.get('id'),
-			locals.user?.id
-		);
+		await db
+			.prepare('DELETE FROM vision_logs WHERE id = ? AND user_id = ?')
+			.run(data.get('id'), locals.user?.id);
 		return { success: true };
 	},
 	edit_log: async ({ request, locals }) => {
+		if (!locals.user) throw redirect(303, '/login');
 		const data = await request.formData();
-		db.prepare(
-			'UPDATE vision_logs SET left_eye = ?, right_eye = ?, astigmatism = ? WHERE id = ? AND user_id = ?'
-		).run(
-			data.get('left_eye'),
-			data.get('right_eye'),
-			data.get('astigmatism'),
-			data.get('id'),
-			locals.user?.id
-		);
+		const log = parseVisionLog(data);
+		if (!log)
+			return fail(400, {
+				error: 'Укажите числовые значения от −40 до 40 и заметку до 1000 символов.'
+			});
+		await db
+			.prepare(
+				'UPDATE vision_logs SET left_eye = ?, right_eye = ?, astigmatism = ? WHERE id = ? AND user_id = ?'
+			)
+			.run(log.leftEye, log.rightEye, log.notes, data.get('id'), locals.user?.id);
 		return { success: true };
 	},
 	delete_test: async ({ request, locals }) => {
+		if (!locals.user) throw redirect(303, '/login');
 		const data = await request.formData();
-		db.prepare('DELETE FROM test_results WHERE id = ? AND user_id = ?').run(
-			data.get('id'),
-			locals.user?.id
-		);
+		await db
+			.prepare('DELETE FROM test_results WHERE id = ? AND user_id = ?')
+			.run(data.get('id'), locals.user?.id);
 		return { success: true };
 	}
 };
